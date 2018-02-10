@@ -54,7 +54,7 @@ def main():
 		
 		#Date and time
 		out_list.append(" DATE AND TIME")
-		out_list.append(sprintf("  Time: %s\n  Date: %s\n", time.strftime("%H:%M:%S", time.gmtime(time_now)), time.strftime("%Y-%b-%d, %A", time.gmtime(time_now))))
+		out_list.append(sprintf("  Time: %s\n  Date: %s\n", time.strftime("%H:%M:%S", time.localtime(time_now)), time.strftime("%Y-%b-%d, %A", time.localtime(time_now))))
 		
 		#System uptime
 		out_list.append(" SYSTEM UPTIME")
