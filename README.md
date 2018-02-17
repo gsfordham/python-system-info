@@ -3,7 +3,8 @@ A port of my old Bash system info script to Python. Python has a lot more cool t
 
 Important Info:
   1) Requires Python 3.x
-  2) [More to come]
+  2) Requires psutil
+  3) [More to come]
   
 To Do:
   1) ~~Add colours~~ DONE!
