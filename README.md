@@ -14,3 +14,5 @@ To Do:
   4) ~~Make application use curses~~ DONE!
   5) _Create new modules/libraries to separate functions_ UPDATED!
   0) [More to come]
+
+<img src='https://i.imgur.com/nS50Kd8.png'/>
