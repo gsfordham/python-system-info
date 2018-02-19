@@ -6,11 +6,11 @@
 '''
 
 #Imports
+import alsaaudio
 import curses
 from curses import wrapper
 import curses.ascii
 import math
-import os
 import psutil
 import sys
 import time
@@ -21,24 +21,17 @@ from cpumonitor import *
 from datetimemonitor import *
 from memmonitor import *
 from procmonitor import *
+from soundmonitor import *
 from strfmt import *
 from sysinfomonitor import *
 #END Custom Imports
 
 #---FUNCTIONS BELOW---#
-
-def do_clear():
-	os.system('clear')
-	'''
-		os.system('cls' if os.name == 'nt' else 'clear')
-		Remnant of possible cross-plat version.
-		Unsure if I will use at a later point.
-	'''
 	
 #Main application function
 def main(screen=None):
 	#Set the timeout
-	screen.timeout(1000)
+	screen.timeout(250)
 	
 	#Turn off input echoing
 	curses.noecho()
@@ -56,7 +49,6 @@ def main(screen=None):
 	curses.use_default_colors()
 	
 	#Initial clear
-	#do_clear()
 	screen.clear()
 	
 	#Create the colour list
@@ -96,8 +88,19 @@ def main(screen=None):
 		# b/c I couldn't think of something better, atm.
 		# Will probably change this later.
 		
+		#Generic colours
+		'GREEN': curses.color_pair(6) | curses.A_BOLD,
+		'YELLOW': curses.color_pair(5) | curses.A_BOLD,
+		'RED': curses.color_pair(3) | curses.A_BOLD,
+		
 		'NONE': curses.color_pair(10) #Clear
 	}
+	
+	#Volume variables
+	reset_vol = 50 #Select a default volume to reset to
+	mute_vol = 0 #Store muted volume (to reset)
+	step = 2 #Set volume step
+	vol_bar = "█" #Character to use in volume bar
 	
 	#Get OS info
 	os_name = get_os()
@@ -119,59 +122,99 @@ def main(screen=None):
 	#Start the loop
 	while True:
 		#Clear the screen each time
-		#do_clear()
 		screen.clear()
 		
 		#Get the current time
 		##Using this so that the time remains consistent
 		time_now = time.time()
 		
-		#Create list
-		out_list = []
+		#Create a playback mixer
+		'''
+			Must be done IN loop, because it doesn't seem
+			to recognise changes if made outside.
+		'''
+		pb = alsaaudio.Mixer(control='Master', device='default')
+		vols = pb.getvolume()
+		max_vol = max(vols)
+		min_vol = min(vols)
 		
 		#Title
-		screen.addstr("++SYSTEM INFO++" + '\n', cfg['H1']) #Application header
+		screen.addstr("++SYSTEM INFO++\n", cfg['H1']) #Application header
 		
 		#Date and time
-		screen.addstr(" DATE AND TIME" + '\n', cfg['H1']) #Date/time header
-		#out_list.append(sprintf("  Time: %s\n  Date: %s\n", fmt_localtime(time_now), fmt_date(time_now)))
-		screen.addstr("  " + fmt_date(time_now) + " " + fmt_localtime(time_now) + '\n', cfg['H2']) #Date and time
+		screen.addstr(" DATE AND TIME\n", cfg['H1']) #Date/time header
+		screen.addstr("  {} {}\n".format(fmt_date(time_now), fmt_localtime(time_now)), cfg['H2']) #Date and time
 		
 		#System uptime
-		screen.addstr(" SYSTEM UPTIME" + '\n', cfg['H1']) #Uptime header
-		screen.addstr("  " + get_uptime(time_now) + '\n', cfg['H2']) #Current uptime
+		screen.addstr(" SYSTEM UPTIME\n", cfg['H1']) #Uptime header
+		screen.addstr("  {}\n".format(get_uptime(time_now)), cfg['H2']) #Current uptime
 		
 		#System info
-		screen.addstr(" SYSTEM INFO" + '\n', cfg['H1']) #SysInfo header
-		screen.addstr("  OS: " + os_name + '\n', cfg['H2']) #OS
-		screen.addstr("  Kernel: " + kernel + '\n', cfg['H2']) #Kernel
-		screen.addstr("  Arch: " + architecture + '\n', cfg['H2']) #Architecture
-		screen.addstr("  Hostname: " + hostname + '\n', cfg['H2']) #Hostname
+		screen.addstr(" SYSTEM INFO\n", cfg['H1']) #SysInfo header
+		screen.addstr("  OS: {}\n".format(os_name), cfg['H2']) #OS
+		screen.addstr("  Kernel: {}\n".format(kernel), cfg['H2']) #Kernel
+		screen.addstr("  Arch: {}\n".format(architecture), cfg['H2']) #Architecture
+		screen.addstr("  Hostname: {}\n".format(hostname), cfg['H2']) #Hostname
 		
 		#CPU info
 		screen.addstr(" CPU STATUS" + '\n', cfg['H1']) #CPU header
-		screen.addstr(sprintf("  Cores: %dC/%dT @%7.2f Mhz\n", cores, threads, cpu_current()), cfg['H2'])
-		screen.addstr(sprintf("  Min/Max: %d / %d Mhz\n", min_freq, max_freq), cfg['H2'])
+		screen.addstr("  Cores: {}C/{}T @{:7.2f} Mhz\n".format(cores, threads, cpu_current()), cfg['H2'])
+		screen.addstr("  Min/Max: {} / {} Mhz\n".format(min_freq, max_freq), cfg['H2'])
 		
 		cpu_used = psutil.cpu_percent(interval=0, percpu=False)
-		screen.addstr(sprintf("  Utilisation: %s%%\n", str(cpu_used)), 
+		screen.addstr("  Utilisation: {}%\n".format(str(cpu_used)), 
 			cfg['CRIT'] if cpu_used > 95.0 else cfg['BAD'] if cpu_used > 85.0 else cfg['LOW'] if cpu_used > 70.0 else cfg['OKAY'] if cpu_used > 40.0 else cfg['GOOD'])
 			#percpu=True returns each CPU's usage, but this takes up a lot of space
 		
 		#Memory info
-		screen.addstr(" FREE MEMORY" + '\n', cfg['H1']) #Memory header
+		screen.addstr(" FREE MEMORY\n", cfg['H1']) #Memory header
 		
 		perc_used = mem_perc(mem_denom, mem_tot)
-		screen.addstr(sprintf("  %d %s / %d %s (%.2f%%)\n", mem_used(mem_denom), mem_postfix, mem_tot, mem_postfix, perc_used), 
+		screen.addstr("  {:.0f} {} / {:.0f} {} ({:.2f}%)\n".format(mem_used(mem_denom), mem_postfix, mem_tot, mem_postfix, perc_used), 
 			cfg['CRIT'] if perc_used < 15.0 else cfg['BAD'] if perc_used < 25.0 else cfg['LOW'] if perc_used < 30.0 else cfg['OKAY'] if perc_used < 40.0 else cfg['GOOD'])
 		
 		#Process count
-		screen.addstr(" PROCESSES" + '\n', cfg['H1']) #Processes header
-		screen.addstr("  Count: " + str(get_pids(True)) + '\n', cfg['H2']) #Count of processes
+		screen.addstr(" PROCESSES\n", cfg['H1']) #Processes header
+		screen.addstr("  Count: {}\n".format(str(get_pids(True))), cfg['H2']) #Count of processes
+		
+		#Volume management
+		lv, _ = divmod(vols[0], 5)
+		rv, _ = divmod(vols[1], 5)
+		lbarg = vol_bar * (lv if lv < 8 else 8)
+		rbarg = vol_bar * (rv if rv < 8 else 8)
+		lbary = vol_bar * (lv - 8 if (lv < 16) else 8)
+		rbary = vol_bar * (rv - 8 if (rv < 16) else 8)
+		lbarr = vol_bar * (lv - 16 if (lv < 20) else 4)
+		rbarr = vol_bar * (lv - 16 if (rv < 20) else 4)
+		screen.addstr(" VOLUME\n", cfg['H1'])
+		screen.addstr("  L ({:3}%):".format(vols[0]), cfg['H2'])
+		screen.addstr(lbarg, cfg['GREEN'])
+		screen.addstr("{}".format(lbary), cfg['YELLOW'])
+		screen.addstr("{}".format(lbarr), cfg['RED'])
+		screen.addstr("\n")
+		screen.addstr("  R ({:3}%):".format(vols[1]), cfg['H2'])
+		screen.addstr(rbarg, cfg['GREEN'])
+		screen.addstr("{}".format(rbary), cfg['YELLOW'])
+		screen.addstr("{}".format(rbarr), cfg['RED'])
+		screen.addstr("\n")
+		screen.addstr("  Stored mute volume: {}\n".format(str(mute_vol)), cfg['H2'])
+		screen.addstr("  Configured reset volume: {}\n".format(str(reset_vol)), cfg['H2'])
 		
 		#Get the key
 		key = screen.getch()
-		if key in [
+		#RAISE the volume
+		if key in [ord("A"), ord("a")]: #Both up
+			inc_volume(pb, max_vol, step)
+		#LOWER the volume
+		elif key in [ord("Z"), ord("z")]: #Both down
+			dec_volume(pb, min_vol, step)
+		#RESET the volume
+		elif key in [ord("R"), ord("r")]:
+			reset_volume(pb, reset_vol)
+		#MUTE the volume
+		elif key in [ord("M"), ord("m")]:
+			mute_vol = mute_volume(pb, mute_vol, max_vol)
+		elif key in [
 				27, #Escape
 				#10, #Enter
 				ord("q"),
