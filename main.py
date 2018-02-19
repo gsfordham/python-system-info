@@ -169,13 +169,7 @@ def main(screen=None):
 		screen.addstr(" PROCESSES" + '\n', cfg['H1']) #Processes header
 		screen.addstr("  Count: " + str(get_pids(True)) + '\n', cfg['H2']) #Count of processes
 		
-		#Print all output
-		'''for i in out_list:
-			#print(i)
-			screen.addstr(i + '\n')
-		'''
-		#Clear the colours
-		print(cfg['NONE'], end='', flush=True)
+		#Get the key
 		key = screen.getch()
 		if key in [
 				27, #Escape
