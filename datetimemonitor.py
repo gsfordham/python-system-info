@@ -20,22 +20,24 @@ from strfmt import *
 def get_uptime(arg=None):
 	time_now = (arg if (arg is not None and isinstance(arg, int)) else time.time()) #Current time
 	boot_time = psutil.boot_time() #Boot time
-	uptime_raw = time.strftime("%H:%M:%S", time.gmtime(time_now - boot_time))
-	uptime_split = uptime_raw.split(':') #Split the raw uptime
+	uptime = (time_now - boot_time)
 	
-	#Divide hours (uptime_split[0]) by 24 to get days
-	uptime_days, uptime_hours = divmod(int(uptime_split[0]), 24)
+	m, s = divmod(uptime, 60) #Mins, Secs
+	h, m = divmod(m, 60) #Hours, Mins
+	d, h = divmod(h, 24) #Days, Hours
+	dt = d #Store total days
+	w, d = divmod(d, 7) #Weeks, Days
 	
-	#Return formatted string using a sprintf buffer
-	return (
-		sprintf("%d days, %s:%s:%s (%d s)",
-			uptime_days, 
-			str(uptime_hours).zfill(2), 
-			uptime_split[1], 
-			uptime_split[2],
-			(time_now - boot_time)
-		)
-	)
+	dp = ('' if d == 1 else 's') #Is days plural?
+	dtp = ('' if dt == 1 else 's') #Total days plural?
+	wp = ('' if w == 1 else 's') #Weeks plural?
+	
+	return("{:,.0f} ".format(dt) +
+		("day%s, %02d:%02d:%02d\n  " % (dtp, h, m, s)) +
+		("({:,.0f} seconds)".format(uptime)) +
+		("\n  (") +
+		("{:,.0f} week".format(w)) +
+		("%s and %d day%s)" % (wp, d, dp)))
 
 #Get the current time
 def get_localtime(arg=None):
