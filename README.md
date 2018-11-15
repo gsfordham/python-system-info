@@ -16,6 +16,7 @@ To Do:
   5) _Create new modules/libraries to separate functions_ UPDATED!
   6) ~~Add audio monitoring and controls~~ DONE!
   7) Add command-line arguments capabilities
+  8) Update pictures in README
   0) [More to come]
   
 Controls:
@@ -24,6 +25,11 @@ Controls:
   3) Raise volume (A/a) -- default step is 2, but you can change it
   4) Lower volume (Z/z) -- same as above
   5) Quit (ESC/Q/q)
+  
+Recent Updates and Bug Fixes:
+  1) _Fixed error with uptime display for uptimes greater than 1 day_
+  2) Added weeks formatting to the display
+  3) Changed the display uptime function to be more "Pythonic"
 
 <img src='https://i.imgur.com/qzVMX87.png'/>
 <img src='https://i.imgur.com/UlDMNek.png'/>
